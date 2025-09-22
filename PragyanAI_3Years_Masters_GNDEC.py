@@ -286,7 +286,7 @@ def render_mentor():
     
     cols = st.columns([1, 2])
     with cols[0]:
-        st.image("https://placehold.co/200x200/1e293b/f97316?text=SA", caption="Sateesh Ambessange, Lead Trainer", use_column_width=True)
+        st.image("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTXl18stPFMZ9B7yfzGP0of1Hv_zqewxTId8g&s", caption="Sateesh Ambessange, Lead Trainer", use_container_width=True)
     with cols[1]:
         st.write("""
         Learn from a veteran with **25+ years of industry, academic, and research experience**. 

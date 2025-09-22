@@ -544,7 +544,7 @@ def render_dashboard():
     if st.button("Generate AI Analysis"):
         with st.spinner("🤖 Analyzing data and generating insights..."):
             try:
-                llm = ChatGroq(api_key=groq_api_key, model_name="llama3-8b-8192")
+                llm = ChatGroq(api_key=groq_api_key, model_name="llama-3.3-70b-versatile")
                 
                 prompt = f"""
                 Analyze the following user engagement data for a course landing page over the last 30 days and provide a summary of insights.

@@ -1,0 +1,621 @@
+import streamlit as st
+import base64
+import os
+import gdown
+import pandas as pd
+import numpy as np
+from langchain_community.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain.chains import RetrievalQA
+from langchain_groq import ChatGroq
+
+
+# --- Page Configuration ---
+# MODIFIED: Updated page title for GNDEC
+st.set_page_config(
+    page_title="PragyanAI -MCP in Data Science,AI and GenAI | GNDEC + PragyanAI",
+    page_icon="🤖",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# --- Custom CSS for Styling ---
+def local_css(file_name):
+    if os.path.exists(file_name):
+        with open(file_name) as f:
+            st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+
+# local_css("style.css")
+
+# --- Helper function for PDF download ---
+def get_pdf_as_base64(file_path):
+    """Reads a PDF file and returns its base64 encoded string."""
+    try:
+        with open(file_path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    except FileNotFoundError:
+        return None
+
+# --- RAG Pipeline Setup (Cached for performance) ---
+@st.cache_resource
+def setup_rag_pipeline(groq_api_key):
+    """Downloads PDF from Google Drive, loads it, creates embeddings, and sets up a RAG QA chain."""
+    # 1. Download PDF from Google Drive
+    output_pdf_path = "MCP_Program_Brochure_RAG.pdf"
+    # NOTE: You may want to update this file_id to the GNDEC brochure's Google Drive ID
+    file_id = "177VRFLhiyCC_xJ8idVBOhCPYcM6sz6un"
+    
+    if not os.path.exists(output_pdf_path):
+        with st.spinner("Downloading program brochure for AI Assistant..."):
+            gdown.download(id=file_id, output=output_pdf_path, quiet=False)
+
+    # 2. Load PDF
+    with st.spinner("Processing program brochure for AI Assistant..."):
+        loader = PyPDFLoader(file_path=output_pdf_path)
+        docs = loader.load()
+
+        # 3. Split Text into Chunks
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        splits = text_splitter.split_documents(docs)
+
+        # 4. Create Embeddings using a local model
+        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+
+        # 5. Create Vector Store (FAISS)
+        vectorstore = FAISS.from_documents(documents=splits, embedding=embeddings)
+
+        # 6. Setup LLM & Retrieval QA Chain
+        llm = ChatGroq(api_key=groq_api_key, model_name="llama3-70b-8192")
+        
+        qa_chain = RetrievalQA.from_chain_type(
+            llm=llm,
+            chain_type="stuff",
+            retriever=vectorstore.as_recommender()
+        )
+    return qa_chain
+
+
+# --- Main App Sections ---
+
+def render_sidebar():
+    """Renders the sidebar navigation and key action links."""
+    with st.sidebar:
+        if os.path.exists("PragyanAI_Transperent.png"):
+            st.image("PragyanAI_Transperent.png", use_container_width=True)
+        else:
+            # MODIFIED: Updated brand text for GNDEC
+            st.markdown(
+                """
+                <div class="sidebar-header">
+                    <span class="brand-text">GNDEC + <span class="gradient-text">PragyanAI</span></span>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        st.header("Navigation")
+        
+        page = st.radio(
+            "Go to",
+            [
+                "Home", "Program Details", "Curriculum", "Mentor", "Videos", "Investment", 
+                "Placement Assurance", "Our Advantage", "About PragyanAI", "AI Assistant & FAQ", "Dashboard"
+            ],
+            label_visibility="collapsed"
+        )
+        
+        st.markdown("---")
+        
+        st.header("Get Started")
+        
+        st.link_button(
+            "Enroll / Express Interest", 
+            "https://forms.gle/cpdSwqy3fxd7EMgW9",
+            use_container_width=True, type="primary"
+        )
+        
+        # MODIFIED: Updated PDF path for the 3-year GNDEC brochure
+        pdf_b64 = get_pdf_as_base64("3 Year MCP Program - Grooms Tommorrow's AI Leaders-GNDEC.pdf")
+        if pdf_b64:
+            st.download_button(
+                label="Download Program Brochure (PDF)",
+                data=base64.b64decode(pdf_b64),
+                # MODIFIED: Updated file name for the download
+                file_name="PragyanAI_GNDEC_3_Year_MCP_Brochure.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+        else:
+            st.warning("Brochure PDF not found. Please add it to the project folder.")
+            
+        st.markdown("---")
+        st.info(
+            """
+            **Contact Us:**
+            📧 [pragyan.ai.school@gmail.com](mailto:pragyan.ai.school@gmail.com)  
+            📞 [+91-9741007422](tel:+919741007422)
+            """
+        )
+        
+        st.markdown("---")
+        st.header("Connect with Mentor")
+        st.link_button(
+            "Sateesh Ambessange's LinkedIn", 
+            "https://www.linkedin.com/in/sateesh-ambesange-3020185/",
+            use_container_width=True
+        )
+
+        return page
+
+def render_hero():
+    """Renders the main hero section."""
+    if os.path.exists("PragyanAI_Transperent.png"):
+        col1, col2, col3 = st.columns([1,2,1])
+        with col2:
+            st.image("PragyanAI_Transperent.png", use_container_width=True)
+
+    # MODIFIED: Updated hero subtitle for 3-Year Program at GNDEC
+    st.markdown(
+        """
+        <div class="hero-section">
+            <h1 class="hero-title">Groom Tomorrow's AI Leaders</h1>
+            <p class="hero-subtitle">A 3-Year Master's Certificate Program in Data Science, AI, GenAI & AgenticAI by GNDEC and PragyanAI.</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    
+    # MODIFIED: Updated metrics for the 3-year program
+    cols = st.columns(3)
+    with cols[0]:
+        st.markdown('<div class="metric-card">🕒 2000+ Hours</div>', unsafe_allow_html=True)
+    with cols[1]:
+        st.markdown('<div class="metric-card">🏆 150+ Projects</div>', unsafe_allow_html=True)
+    with cols[2]:
+        st.markdown('<div class="metric-card">✅ Placement Assured</div>', unsafe_allow_html=True)
+
+def render_program_details():
+    """Renders About Program and Roadmap sections."""
+    st.markdown("## Transform Your Career with <span class='gradient-text'>Deep AI Skills</span>", unsafe_allow_html=True)
+    st.write("This isn't just another certificate. It's a transformational journey designed to counter market headwinds and place you at the forefront of the AI revolution.")
+    
+    # MODIFIED: Updated program details for the 3-year program
+    cols = st.columns(3)
+    with cols[0]:
+        with st.container(border=True):
+            st.subheader("💡 Hybrid Learning Model")
+            st.write("Combines 550+ hours of intensive offline sessions at GNDEC with 1500+ hours of live online instruction, offering the best of both worlds.")
+    with cols[1]:
+        with st.container(border=True):
+            st.subheader("📈 Impact Assured")
+            st.write("We offer a 50% program fee refund if you are not placed within 6 months of program completion (T&C Apply). Your success is our mission.")
+    with cols[2]:
+        with st.container(border=True):
+            st.subheader("🎓 M.Tech Equivalent")
+            st.write("With 2000+ hours, 150+ projects, and a curriculum covering 8 key AI domains, the depth is comparable to an M.Tech in AI/ML from a top institution.")
+    
+    st.markdown("---")
+    
+    st.markdown("## Your <span class='gradient-text'>AI Skills Acceleration</span> Roadmap", unsafe_allow_html=True)
+    st.write("A structured, semester-wise journey from foundational concepts to market-leading AI technologies.")
+    
+    # MODIFIED: Updated roadmap for the 3-year program (Semesters 3-8)
+    timeline = {
+        "SEMESTER 3": ("Foundations & Data Wrangling", "Master Python Full Stack, Data Science fundamentals, advanced data wrangling, statistics, and visualization."),
+        "SEMESTER 4": ("Data Science & Visualization", "Deep dive into statistical analysis, advanced data visualization, and Exploratory Data Analysis (EDA)."),
+        "SEMESTER 5": ("BI & Machine Learning", "Explore Business Intelligence with tools like Tableau & PowerBI. Build, evaluate, and deploy various Machine Learning models."),
+        "SEMESTER 6": ("Advanced ML & Deep Learning", "Cover advanced topics like Recommendation Systems and Time Series, and introduce Deep Learning with TensorFlow & PyTorch."),
+        "SEMESTER 7": ("Deep Learning, CV & NLP", "Uncover the power of Deep Learning with TensorFlow & PyTorch. Work on Computer Vision and build advanced NLP-powered AI Bots."),
+        "SEMESTER 8": ("Generative & Agentic AI", "Step into the future with Generative AI, LLMs, and Prompt Engineering. Build autonomous AI agents and multi-agent systems.")
+    }
+    
+    for semester, (title, description) in timeline.items():
+        st.markdown(f"#### {semester}: {title}")
+        st.write(description)
+        st.markdown("<br>", unsafe_allow_html=True)
+
+def render_curriculum(pdf_b64):
+    """Renders the curriculum section with tabs."""
+    st.markdown("## An <span class='gradient-text'>Industry-Vetted</span> Curriculum", unsafe_allow_html=True)
+    st.write("Explore the 8 key skills you'll master, packed with the most in-demand tools and libraries.")
+
+    # MODIFIED: Updated tabs for the 3-year program (Semesters 3-8)
+    sem3, sem4, sem5, sem6, sem7, sem8 = st.tabs(["Semester 3", "Semester 4", "Semester 5", "Semester 6", "Semester 7", "Semester 8"])
+    
+    def download_button(pdf_data, key):
+        if pdf_data:
+            st.download_button(
+                label="Download Full Brochure",
+                data=base64.b64decode(pdf_data),
+                file_name="PragyanAI_GNDEC_3_Year_MCP_Brochure.pdf",
+                mime="application/pdf",
+                key=key
+            )
+
+    with sem3:
+        st.subheader("SKILL 1: Python & Data Wrangling")
+        st.write("Core Python, data processing, web scraping, and media handling.")
+        st.caption("Tools: NumPy, Pandas, OpenCV, Pillow, Scrapy")
+        download_button(pdf_b64, key="sem3_download")
+
+    with sem4:
+        st.subheader("SKILL 2: Data Science Foundation")
+        st.write("Statistics, probability, EDA, and data visualization.")
+        st.caption("Tools: Matplotlib, Seaborn, Plotly, Statsmodels")
+        download_button(pdf_b64, key="sem4_download")
+        
+    with sem5:
+        st.subheader("SKILL 3: BI / Data Analytics")
+        st.write("Business Intelligence, advanced Excel, and dashboarding.")
+        st.caption("Tools: Tableau, PowerBI, Google Looker, Metabase")
+        st.subheader("SKILL 4: Machine Learning")
+        st.write("Supervised/unsupervised learning, model optimization and deployment.")
+        st.caption("Tools: Scikit-learn, XGBoost, LightGBM, Streamlit")
+        download_button(pdf_b64, key="sem5_download")
+
+    with sem6:
+        st.subheader("Advanced Machine Learning & Deep Learning Introduction")
+        st.write("Recommendation Systems, Time Series, Anomaly Detection, and introduction to Neural Networks.")
+        st.caption("Tools: TensorFlow Recommenders, Prophet, PyTorch, Keras")
+        download_button(pdf_b64, key="sem6_download")
+
+    with sem7:
+        st.subheader("SKILL 5: Deep Learning & CV")
+        st.write("ANN, CNN, RNNs, transformers, and advanced Computer Vision.")
+        st.caption("Tools: TensorFlow, Keras, PyTorch, MediaPipe, OpenCV")
+        st.subheader("SKILL 6: NLP & AI Bot")
+        st.write("Text processing, embeddings, conversational AI, and multimodal bots.")
+        st.caption("Tools: Hugging Face, Transformers, NLTK, spaCy")
+        download_button(pdf_b64, key="sem7_download")
+
+    with sem8:
+        st.subheader("SKILL 7: Generative AI")
+        st.write("LLMs, fine-tuning, RAG, and advanced prompt engineering.")
+        st.caption("Tools: GPT, LLAMA, LangChain, LlamaIndex, PEFT")
+        st.subheader("SKILL 8: Agentic AI")
+        st.write("Building single and multi-agent systems for autonomous tasks.")
+        st.caption("Tools: CrewAI, AutoGPT, LangChain Agents, AutoGen")
+        download_button(pdf_b64, key="sem8_download")
+
+def render_mentor():
+    """Renders the dedicated page for the mentor."""
+    st.markdown("## Meet Your <span class='gradient-text'>Mentor</span>", unsafe_allow_html=True)
+    
+    cols = st.columns([1, 2])
+    with cols[0]:
+        st.image("https://placehold.co/200x200/1e293b/f97316?text=SA", caption="Sateesh Ambessange, Lead Trainer", use_column_width=True)
+    with cols[1]:
+        st.write("""
+        Learn from a veteran with **25+ years of industry, academic, and research experience**. 
+        He has developed commercial AI products, guided GenAI startups, mentored at hackathons, 
+        and helped shape AI curricula for top institutions like Wharton University.
+        
+        His "Live-to-Practice Pipeline" methodology ensures that theoretical knowledge is immediately applied, mirroring real-world industry expectations and preparing you for the challenges of the job market.
+        """)
+        st.link_button("View LinkedIn Profile", "https://www.linkedin.com/in/sateesh-ambesange-3020185/")
+    st.markdown("---")
+    st.write("The program is delivered by highly experienced faculty using a pedagogy designed for deep, practical learning. The lead trainer's background includes developing commercial products, guiding startups in GenAI, and helping develop AI curricula for institutions like Wharton University.")
+
+def render_videos():
+    """Renders the video embedding page."""
+    st.markdown("## <span class='gradient-text'>Program Insights & Testimonials</span>", unsafe_allow_html=True)
+    st.write("Hear directly from our team and students about the program's impact.")
+
+    st.subheader("About The Program")
+    st.video("https://youtu.be/wp_hejdJzZk")
+
+    st.subheader("Why You Should Learn AI in Today's World")
+    st.video("https://youtu.be/JXQhXT_ic9s") 
+
+    st.subheader("Sample Student Project Showcase")
+    st.video("https://youtu.be/tiY7-EP3GKs")
+
+def render_investment():
+    """Renders the investment and comparison sections."""
+    st.markdown("## A Risk-Free <span class='gradient-text'>Investment In Your Future</span>", unsafe_allow_html=True)
+    st.write("Our unique financial model ensures our goals are aligned with yours: your success.")
+
+    # MODIFIED: Updated investment details for the 3-year program
+    cols = st.columns(2)
+    with cols[0]:
+        with st.container(border=True):
+            st.subheader("Program Fee")
+            st.markdown("<p class='price-text'>₹60,000</p>", unsafe_allow_html=True)
+            st.write("Paid as ₹10,000 per semester for 6 semesters.")
+    with cols[1]:
+        with st.container(border=True):
+            st.subheader("Pay After Placement")
+            st.write("Only pay after you secure a job. The amount depends on your CTC:")
+            st.markdown("""
+            - **₹25,000** for CTC < 5 Lakh
+            - **₹50,000** for CTC 5-10 Lakh
+            - **₹1 Lakh** for CTC > 10 Lakh
+            """)
+    
+    st.markdown("---")
+
+    st.markdown("## The <span class='gradient-text'>PragyanAI Difference</span>", unsafe_allow_html=True)
+    st.write("See how our MCP program stacks up against other popular options.")
+    
+    # MODIFIED: Updated comparison table for the 3-year program
+    st.markdown("""
+    | Feature               | MCP (This Program)                     | Other AI/ML Programs    | Bootcamps                   |
+    |-----------------------|----------------------------------------|-------------------------|-----------------------------|
+    | **Duration & Hours** | **2000+ hours** | 250-600 hours           | 200-400 hours               |
+    | **Projects** | **150+ projects, 3-5 real capstones** | ~10 projects            | Few basic projects          |
+    | **Delivery Mode** | **Blended (Offline + Online)** | Primarily Online        | Mostly Online               |
+    | **Cost Structure** | **Pay-per-sem + Pay-after-placement** | High upfront fee        | High upfront fee            |
+    | **Placement** | **100% Guarantee with refund policy** | No formal guarantee     | "Placement assistance" only |
+    | **Skill Coverage** | **Full stack AI, GenAI, AgenticAI** | Core ML/DS              | ML basics, coding prep      |
+    """)
+
+def render_placement_assurance():
+    """Renders the dedicated page for placement assurance."""
+    st.markdown("## <span class='gradient-text'>Your Success is Our Mission</span>", unsafe_allow_html=True)
+    st.write("We provide comprehensive placement support to ensure every eligible student lands a high-value job. Our commitment is backed by a structured process and aggressive, industry-aligned training.")
+
+    st.markdown("---")
+
+    st.subheader("Mandatory Eligibility Criteria for Placement")
+    st.write("To be eligible for our placement drive, students must fulfill the following conditions:")
+    
+    # MODIFIED: Updated placement criteria for the 3-year program
+    with st.container(border=True):
+        st.markdown("""
+        - **Attendance:** A minimum of 85% attendance is mandatory in all sessions (online and offline).
+        - **Academic Standing:** Students must have no active backlogs.
+        - **Coursework Completion:** All assignments, code challenges, and projects must be submitted on time.
+        - **Demonstrated Skills:** Successful completion and demonstration of all major projects.
+        - **Research & Innovation:** Completion of 3 research papers and participation in at least 4 hackathons.
+        - **Real-World Experience:** Mandatory completion of 3-5 live, real-world projects.
+        """)
+    
+    st.markdown("---")
+    
+    st.subheader("Our Placement Guarantee & Support")
+    
+    cols = st.columns(2)
+    with cols[0]:
+        with st.container(border=True):
+            st.markdown("#### **Unwavering Support**")
+            st.write("Our support doesn't end until every eligible student is placed. We leverage our network of over **2000+ company connections** to create opportunities.")
+    with cols[1]:
+        with st.container(border=True):
+             st.markdown("#### **Placement Policy**")
+             st.write("Any job offer a student receives after enrolling in the program, whether through our drives or their own efforts, will be considered a placement facilitated by the program.")
+    
+    st.success("Our aggressive, hands-on curriculum is the reason our placement happens and why our graduates are in high demand.")
+
+def render_advantage():
+    """Renders the 'Why Us' and 'Trainer' sections."""
+    st.markdown("## Your <span class='gradient-text'>Unfair Advantage</span> in the AI Era", unsafe_allow_html=True)
+    st.write("We've engineered this program to give you a decisive edge in a competitive job market.")
+    
+    # MODIFIED: Updated advantage metrics for the 3-year program
+    cols = st.columns(4)
+    cols[0].metric("📚 Intense Rigor", "2000+ Hours", "8 AI Domains")
+    cols[1].metric("💰 Outcome-Based", "Refund Guarantee", "Higher CTC")
+    cols[2].metric("🔬 Research Alignment", "3 Papers/Patents", "4 Hackathons")
+    cols[3].metric("🚀 Unmatched Depth", "150+ Projects", "70+ Tools")
+        
+def render_about_pragyanai():
+    """Renders the section about PragyanAI's achievements."""
+    st.markdown("## Powered by an <span class='gradient-text'>Award-Winning AI Pioneer</span>", unsafe_allow_html=True)
+    st.write("PragyanAI is not just an educator but a DIPP-certified AI product and consulting company at the heart of India's innovation ecosystem.")
+
+    cols = st.columns(3)
+    with cols[0]:
+        with st.container(border=True):
+            st.subheader("🏆 National Recognition")
+            st.write("""
+            - Karnataka Startup Elevate Winner
+            - Recipient of Central Govt. Grant
+            - Part of Startup India & Karnataka
+            """)
+    with cols[1]:
+        with st.container(border=True):
+            st.subheader("🌐 Ecosystem Partners")
+            st.write("Proudly associated with leading institutions:")
+            st.caption("NASSCOM | IIMB-NSRCEL | GSF Academy | IIITB | DERBI")
+    with cols[2]:
+        with st.container(border=True):
+            st.subheader("🎓 Community & Academia")
+            st.write("""
+            - Signed MOU with VTU for Internships
+            - Conducted 200+ Workshops
+            - Jury at Startup India Hackathons
+            """)
+
+def render_ai_assistant_and_faq():
+    """Renders the RAG-based AI Assistant and the FAQ section."""
+    st.markdown("## AI <span class='gradient-text'>Assistant & FAQ</span>", unsafe_allow_html=True)
+    st.write("Have a question? Ask our AI assistant, which uses the official brochure for answers, or check our frequently asked questions below.")
+
+    st.markdown("### AI Student Assistant (RAG Enabled)")
+    try:
+        groq_api_key = st.secrets["GROQ_API_KEY"]
+    except (KeyError, FileNotFoundError):
+        st.error("GROQ_API_KEY not found in Streamlit secrets. Please add it to run the AI assistant.")
+        st.code(" # .streamlit/secrets.toml \n GROQ_API_KEY = 'YOUR_API_KEY_HERE' ")
+        return
+
+    qa_chain = setup_rag_pipeline(groq_api_key)
+    if qa_chain is None:
+        return
+
+    if "rag_messages" not in st.session_state:
+        st.session_state.rag_messages = [
+            {"role": "assistant", "content": "How can I help you with the program details today?"}
+        ]
+
+    for message in st.session_state.rag_messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    if prompt := st.chat_input("e.g., How much is the fee after placement?"):
+        st.session_state.rag_messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        with st.chat_message("assistant"):
+            with st.spinner("Searching the brochure..."):
+                try:
+                    response = qa_chain.invoke({"query": prompt})
+                    answer = response.get("result", "Sorry, I couldn't find an answer in the document.")
+                    st.markdown(answer)
+                    st.session_state.rag_messages.append({"role": "assistant", "content": answer})
+                except Exception as e:
+                    st.error(f"An error occurred: {e}")
+    
+    st.markdown("<br><br><hr><br>", unsafe_allow_html=True)
+
+    st.markdown("### Frequently Asked Questions")
+    # MODIFIED: Updated FAQ for the 3-year program
+    faq_data = {
+        "What is the total duration of the program?": "The program is a 3-year comprehensive Master's Certificate Program with over 2000+ hours of learning, spread across semesters 3 through 8 of your engineering degree.",
+        "How does the placement guarantee work?": "We offer a 50% refund on the program fee if an eligible student is not placed within 6 months of program completion. Eligibility includes maintaining 85% attendance, having no backlogs, and completing all projects and assignments.",
+        "Is this program suitable for beginners?": "Yes. The curriculum is designed to take you from foundational concepts like Python programming in Semester 3 to advanced topics like Agentic AI in Semester 8. It's a structured journey suitable for dedicated learners.",
+        "What are the mandatory conditions for placement support?": "Students must maintain 85% attendance, have no backlogs, and complete all mandatory coursework, including 150+ projects, 3 research papers, and 4 hackathons, to be eligible for the placement drive."
+    }
+
+    for question, answer in faq_data.items():
+        with st.expander(question):
+            st.write(answer)
+
+def render_dashboard():
+    """Renders the analytics dashboard page."""
+    st.markdown("## <span class='gradient-text'>Analytics Dashboard</span>", unsafe_allow_html=True)
+    st.write("Simulated engagement metrics for the program landing page over the last 30 days.")
+
+    try:
+        groq_api_key = st.secrets["GROQ_API_KEY"]
+    except (KeyError, FileNotFoundError):
+        st.error("GROQ_API_KEY not found in Streamlit secrets. Please add it to run the AI features on this page.")
+        st.code(" # .streamlit/secrets.toml \n GROQ_API_KEY = 'YOUR_API_KEY_HERE' ")
+        return
+
+    @st.cache_data
+    def get_analytics_data():
+        dates = pd.to_datetime(pd.date_range(end=pd.Timestamp.now(), periods=30, freq='D'))
+        visitors = np.random.randint(150, 400, size=30)
+        visitors[15:] += np.arange(15) * np.random.randint(5,10)
+        
+        form_fills = (visitors * np.random.uniform(0.05, 0.15, size=30)).astype(int)
+        questions_asked = (visitors * np.random.uniform(0.02, 0.08, size=30)).astype(int)
+        
+        df = pd.DataFrame({
+            'Date': dates,
+            'Page Visits': visitors,
+            'Interest Forms Filled': form_fills,
+            'AI Assistant Questions': questions_asked
+        }).set_index('Date')
+        return df
+
+    df = get_analytics_data()
+
+    total_visitors = df['Page Visits'].sum()
+    total_forms = df['Interest Forms Filled'].sum()
+    total_questions = df['AI Assistant Questions'].sum()
+    conversion_rate = (total_forms / total_visitors) * 100 if total_visitors > 0 else 0
+
+    st.markdown("### Key Metrics (Last 30 Days)")
+    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+    kpi1.metric(label="Total Page Visits", value=f"{total_visitors:,}")
+    kpi2.metric(label="Interest Forms Filled", value=f"{total_forms:,}")
+    kpi3.metric(label="AI Assistant Questions", value=f"{total_questions:,}")
+    kpi4.metric(label="Visitor-to-Form Conversion", value=f"{conversion_rate:.2f}%")
+
+    st.markdown("---")
+
+    st.markdown("### Engagement Over Time")
+    st.line_chart(df)
+
+    st.markdown("### Weekly Engagement Summary")
+    weekly_df = df.resample('W').sum()
+    st.bar_chart(weekly_df)
+
+    st.markdown("---")
+
+    st.markdown("### AI-Powered Insights")
+    
+    if st.button("Generate AI Analysis"):
+        with st.spinner("🤖 Analyzing data and generating insights..."):
+            try:
+                llm = ChatGroq(api_key=groq_api_key, model_name="llama3-8b-8192")
+                
+                prompt = f"""
+                Analyze the following user engagement data for a course landing page over the last 30 days and provide a summary of insights.
+
+                Data Summary:
+                - Total Page Visits: {total_visitors}
+                - Total Interest Forms Filled: {total_forms}
+                - Total Questions asked to the AI Assistant: {total_questions}
+                - Overall Conversion Rate (Visits to Form Fills): {conversion_rate:.2f}%
+                - Daily Data: {df.to_string()}
+
+                Based on this data, provide a brief, easy-to-understand analysis covering the following points in a markdown format:
+                1.  **Overall Performance:** Give a general assessment of the engagement.
+                2.  **Key Trends:** Identify any notable trends (e.g., growth in visits, changes in conversion).
+                3.  **Actionable Suggestions:** Suggest one or two potential actions to improve engagement or conversions. For example, 'The increase in AI assistant questions suggests users are highly engaged; consider adding more FAQs to the main page'.
+                """
+
+                response = llm.invoke(prompt)
+                st.info(response.content)
+
+            except Exception as e:
+                st.error(f"An error occurred while generating insights: {e}")
+
+
+# --- Main App Execution ---
+def main():
+    selected_page = render_sidebar()
+    # MODIFIED: Updated the PDF path for the main function
+    pdf_b64 = get_pdf_as_base64("3 Year MCP Program - Grooms Tommorrow's AI Leaders-GNDEC.pdf")
+    
+    if selected_page == "Home":
+        render_hero()
+        st.markdown("---")
+        render_program_details()
+    elif selected_page == "Program Details":
+        render_program_details()
+    elif selected_page == "Curriculum":
+        render_curriculum(pdf_b64)
+    elif selected_page == "Mentor":
+        render_mentor()
+    elif selected_page == "Videos":
+        render_videos()
+    elif selected_page == "Investment":
+        render_investment()
+    elif selected_page == "Placement Assurance":
+        render_placement_assurance()
+    elif selected_page == "Our Advantage":
+        render_advantage()
+        st.markdown("---")
+        st.markdown("## What Our <span class='gradient-text'>Students Say</span>", unsafe_allow_html=True)
+        cols = st.columns(3)
+        with cols[0]:
+            st.info("""
+            "The depth is incredible. I went from Python basics to building complex Agentic AI systems... gave me the confidence to crack interviews at top tech companies."
+            **- Arjun Kumar**
+            """)
+        with cols[1]:
+            st.info("""
+            "The pay-after-placement model was a game-changer... It showed that PragyanAI was as invested in my career as I was."
+            **- Priya Sharma**
+            """)
+        with cols[2]:
+            st.info("""
+            "The mentorship from Sateesh sir is unparalleled. His industry experience provides insights you just can't get from textbooks."
+            **- Rahul Verma**
+            """)
+    elif selected_page == "About PragyanAI":
+        render_about_pragyanai()
+    elif selected_page == "AI Assistant & FAQ":
+        render_ai_assistant_and_faq()
+    elif selected_page == "Dashboard":
+        render_dashboard()
+
+if __name__ == "__main__":
+    main()

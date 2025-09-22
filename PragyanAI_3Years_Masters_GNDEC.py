@@ -15,7 +15,7 @@ from langchain_groq import ChatGroq
 # --- Page Configuration ---
 # MODIFIED: Updated page title for GNDEC
 st.set_page_config(
-    page_title="PragyanAI -MCP in Data Science,AI and GenAI | GNDEC + PragyanAI",
+    page_title="PragyanAI-MCP in Data Science,AI and GenAI/AgenticAI | GNDEC + PragyanAI",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"

@@ -304,13 +304,13 @@ def render_videos():
     st.markdown("## <span class='gradient-text'>Program Insights & Testimonials</span>", unsafe_allow_html=True)
     st.write("Hear directly from our team and students about the program's impact.")
 
-    st.subheader("About The Program")
-    st.video("https://youtu.be/wp_hejdJzZk")
+    st.subheader("About The Program - Brief")
+    st.video("https://youtu.be/7npcCobuAUg")
 
-    st.subheader("Why You Should Learn AI in Today's World")
+    st.subheader("Why You Should Learn AI in Today's World?")
     st.video("https://youtu.be/JXQhXT_ic9s") 
 
-    st.subheader("Sample Student Project Showcase")
+    st.subheader("Sample Student Project Showcase-Class Video")
     st.video("https://youtu.be/tiY7-EP3GKs")
 
 def render_investment():

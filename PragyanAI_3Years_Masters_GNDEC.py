@@ -73,7 +73,7 @@ def setup_rag_pipeline(groq_api_key):
         qa_chain = RetrievalQA.from_chain_type(
             llm=llm,
             chain_type="stuff",
-            retriever=vectorstore.as_recommender()
+            retriever=vectorstore.as_retriever()
         )
     return qa_chain
 

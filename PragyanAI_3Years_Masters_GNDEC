@@ -43,9 +43,10 @@ def get_pdf_as_base64(file_path):
 def setup_rag_pipeline(groq_api_key):
     """Downloads PDF from Google Drive, loads it, creates embeddings, and sets up a RAG QA chain."""
     # 1. Download PDF from Google Drive
-    output_pdf_path = "MCP_Program_Brochure_RAG.pdf"
+    output_pdf_path = "PragyanAI_3Year_MCP_Program_Brochure_GNDEC.pdf"
     # NOTE: You may want to update this file_id to the GNDEC brochure's Google Drive ID
-    file_id = "177VRFLhiyCC_xJ8idVBOhCPYcM6sz6un"
+    file_id = "1qHv77BYbi24hdUXyt63nPmJJs8hxw7VL"
+    # https://drive.google.com/file/d/1qHv77BYbi24hdUXyt63nPmJJs8hxw7VL/view?usp=sharing
     
     if not os.path.exists(output_pdf_path):
         with st.spinner("Downloading program brochure for AI Assistant..."):
@@ -67,7 +68,7 @@ def setup_rag_pipeline(groq_api_key):
         vectorstore = FAISS.from_documents(documents=splits, embedding=embeddings)
 
         # 6. Setup LLM & Retrieval QA Chain
-        llm = ChatGroq(api_key=groq_api_key, model_name="llama3-70b-8192")
+        llm = ChatGroq(api_key=groq_api_key, model_name="llama-3.3-70b-versatile")
         
         qa_chain = RetrievalQA.from_chain_type(
             llm=llm,
@@ -112,7 +113,7 @@ def render_sidebar():
         
         st.link_button(
             "Enroll / Express Interest", 
-            "https://forms.gle/cpdSwqy3fxd7EMgW9",
+            "https://forms.gle/WotYDzYhht4BMzRe6",
             use_container_width=True, type="primary"
         )
         
@@ -123,7 +124,7 @@ def render_sidebar():
                 label="Download Program Brochure (PDF)",
                 data=base64.b64decode(pdf_b64),
                 # MODIFIED: Updated file name for the download
-                file_name="PragyanAI_GNDEC_3_Year_MCP_Brochure.pdf",
+                file_name="3 Year MCP Program - Grooms Tommorrow's AI Leaders-GNDEC.pdf",
                 mime="application/pdf",
                 use_container_width=True
             )
